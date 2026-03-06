@@ -38,16 +38,57 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   ];
 
-  let currentQuestion = 0;
-  let score = 0;
+  function saveQuizState(state) {
+    localStorage.setItem("quizState", JSON.stringify(state));
+  }
+
+  function getInitialQuizState() {
+    const savedState = JSON.parse(localStorage.getItem("quizState"));
+
+    if (
+      savedState &&
+      Number.isInteger(savedState.currentQuestion) &&
+      Number.isInteger(savedState.score) &&
+      typeof savedState.completed === "boolean" &&
+      savedState.currentQuestion >= 0 &&
+      savedState.currentQuestion <= quizData.length
+    ) {
+      return savedState;
+    }
+
+    return {
+      currentQuestion: 0,
+      score: 0,
+      completed: false
+    };
+  }
+
+  const quizState = getInitialQuizState();
   let selectedAnswer = null;
 
+  function renderCompletedState() {
+    questionEl.textContent = "Quiz Completed!";
+    optionsEl.innerHTML = "";
+    resultEl.textContent = `Your score is ${quizState.score} out of ${quizData.length}.`;
+    nextBtn.style.display = "none";
+    restartBtn.style.display = "inline-block";
+  }
+
   function loadQuestion() {
-    const current = quizData[currentQuestion];
+    if (quizState.completed || quizState.currentQuestion >= quizData.length) {
+      quizState.completed = true;
+      saveQuizState(quizState);
+      renderCompletedState();
+      return;
+    }
+
+    const current = quizData[quizState.currentQuestion];
     questionEl.textContent = current.question;
     optionsEl.innerHTML = "";
     resultEl.textContent = "";
     selectedAnswer = null;
+    nextBtn.style.display = "inline-block";
+    restartBtn.style.display = "none";
 
     current.options.forEach((option) => {
       const btn = document.createElement("button");
@@ -72,28 +113,27 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    if (selectedAnswer === quizData[currentQuestion].answer) {
-      score++;
+    if (selectedAnswer === quizData[quizState.currentQuestion].answer) {
+      quizState.score++;
     }
 
-    currentQuestion++;
+    quizState.currentQuestion++;
 
-    if (currentQuestion < quizData.length) {
+    if (quizState.currentQuestion < quizData.length) {
+      saveQuizState(quizState);
       loadQuestion();
     } else {
-      questionEl.textContent = "Quiz Completed!";
-      optionsEl.innerHTML = "";
-      resultEl.textContent = `Your score is ${score} out of ${quizData.length}.`;
-      nextBtn.style.display = "none";
-      restartBtn.style.display = "inline-block";
+      quizState.completed = true;
+      saveQuizState(quizState);
+      renderCompletedState();
     }
   });
 
   restartBtn.addEventListener("click", () => {
-    currentQuestion = 0;
-    score = 0;
-    nextBtn.style.display = "inline-block";
-    restartBtn.style.display = "none";
+    quizState.currentQuestion = 0;
+    quizState.score = 0;
+    quizState.completed = false;
+    saveQuizState(quizState);
     loadQuestion();
   });
 
